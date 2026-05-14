@@ -8,71 +8,74 @@
 </head>
 <body>
 <header>
-  <h1>Coolify – What is Where</h1>
-  <p>Dienste je Host sammeln – mit Adresse, Port, Name und Bild.</p>
+  <div class="head-inner">
+    <div>
+      <h1>Coolify – What is Where</h1>
+      <p>Deine selbst gehosteten Dienste auf einen Blick.</p>
+    </div>
+    <div class="head-actions">
+      <button id="add-btn">+ Neuer Dienst</button>
+      <button id="token-btn" class="ghost" title="Mein Token">🔑</button>
+    </div>
+  </div>
 </header>
 
 <main>
   <section class="panel">
-    <h2>Neuer Host</h2>
-    <form id="host-form" class="row">
-      <input name="name" placeholder="Host-Name, z.B. Coolify-Server" required />
-      <button type="submit">Host anlegen</button>
-    </form>
+    <h2>Deine Dienste</h2>
+    <div id="mine-cards" class="cards"></div>
   </section>
 
   <section class="panel">
-    <h2>Neuer Dienst</h2>
-    <form id="service-form" enctype="multipart/form-data">
-      <label>Host
-        <select name="hostId" id="host-select" required></select>
-      </label>
-      <label>Name
-        <input name="name" required placeholder="z.B. Gitea" />
-      </label>
-      <label>Adresse (Host/IP, ohne Port)
-        <input name="address" required placeholder="z.B. server.local" />
-      </label>
-      <label>Port
-        <div class="port-row">
-          <input name="port" id="port-input" type="number" min="1" max="65535" required />
-          <button type="button" id="free-port-btn">Freien Port holen</button>
-        </div>
-        <small id="port-hint"></small>
-      </label>
-      <label>Bild / Icon
-        <input name="image" type="file" accept="image/*" />
-      </label>
-      <button type="submit">Speichern</button>
-      <p id="form-error" class="error"></p>
-    </form>
+    <div class="panel-head">
+      <h2>Alle Dienste</h2>
+      <select id="category-filter">
+        <option value="">Alle Kategorien</option>
+      </select>
+    </div>
+    <div id="all-cards" class="cards"></div>
   </section>
-
-  <section id="hosts-container"></section>
 </main>
 
-<!-- Edit-Modal -->
-<dialog id="edit-modal">
-  <form id="edit-form" enctype="multipart/form-data" method="dialog">
-    <h3 id="edit-title">Bearbeiten</h3>
+<!-- Add / Edit Dialog -->
+<dialog id="svc-modal">
+  <form id="svc-form" enctype="multipart/form-data" method="dialog">
+    <h3 id="svc-title">Neuer Dienst</h3>
     <input type="hidden" name="id" />
-    <input type="hidden" name="kind" />
-    <label>Name <input name="name" required /></label>
-    <div class="svc-only">
-      <label>Host <select name="hostId"></select></label>
-      <label>Adresse <input name="address" /></label>
-      <label>Port
-        <div class="port-row">
-          <input name="port" type="number" min="1" max="65535" />
-          <button type="button" id="edit-free-port">Frei</button>
-        </div>
-      </label>
-      <label>Neues Bild <input name="image" type="file" accept="image/*" /></label>
+    <label>Name <input name="name" required placeholder="z.B. Gitea" /></label>
+    <label>Adresse <input name="address" required placeholder="server.local oder 192.168.1.10" /></label>
+    <label>Port
+      <div class="port-row">
+        <input name="port" id="svc-port" type="number" min="1" max="65535" required />
+        <button type="button" id="svc-free">Freien Port holen</button>
+      </div>
+      <small id="svc-port-hint"></small>
+    </label>
+    <label>Kategorie
+      <input name="category" list="cat-list" placeholder="z.B. Anwendung, Spaß, Spiel" />
+      <datalist id="cat-list"></datalist>
+    </label>
+    <label>Beschreibung <textarea name="description" rows="2" placeholder="Optionaler Beschreibungstext"></textarea></label>
+    <label>Bild / Icon <input name="image" type="file" accept="image/*" /></label>
+    <p class="error" id="svc-error"></p>
+    <div class="row right">
+      <button type="button" id="svc-cancel" class="ghost">Abbrechen</button>
+      <button value="save" id="svc-save">Speichern</button>
     </div>
-    <p class="error" id="edit-error"></p>
-    <div class="row">
-      <button value="save" id="edit-save">Speichern</button>
-      <button value="cancel" type="button" id="edit-cancel">Abbrechen</button>
+  </form>
+</dialog>
+
+<!-- Token Dialog -->
+<dialog id="token-modal">
+  <form method="dialog">
+    <h3>Dein Owner-Token</h3>
+    <p style="opacity:.8;font-size:.9rem">Dieser Token liegt in deinem Browser. Nur wer ihn hat, kann seine Dienste bearbeiten und löschen. Kopiere ihn auf andere Geräte, um dort dieselben Dienste zu verwalten.</p>
+    <label>Mein Token <input id="my-token" readonly /></label>
+    <label>Anderen Token übernehmen <input id="claim-token" placeholder="Token von anderem Gerät einfügen" /></label>
+    <p class="error" id="token-error"></p>
+    <div class="row right">
+      <button type="button" id="claim-apply">Übernehmen</button>
+      <button value="close" class="ghost">Schließen</button>
     </div>
   </form>
 </dialog>
