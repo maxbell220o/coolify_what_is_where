@@ -24,6 +24,24 @@ Dann http://localhost:3000 öffnen.
 
 `PORT=8080 npm start` für anderen Port.
 
+## Port-Prüfung in Docker / Coolify
+
+Wenn die App im Container läuft, kann der lokale `listen()`-Test einen Port als
+„frei" melden, der in Wirklichkeit am Host (z.B. von Coolify-Containern) belegt
+ist. Der Container hat eine eigene Netzwerk-Namespace.
+
+Lösung: Die App verbindet sich per TCP zu konfigurierbaren Probe-Hosts und
+prüft, ob der Port von dort aus offen ist.
+
+Wichtig beim Deploy:
+- In **docker-compose** ist `extra_hosts: ["host.docker.internal:host-gateway"]`
+  bereits gesetzt.
+- In **Coolify** als Dockerfile-Resource: unter „Custom Docker Options" ergänzen:
+  `--add-host=host.docker.internal:host-gateway`
+- Umgebungsvariable `PROBE_HOSTS` (Default `host.docker.internal,172.17.0.1`)
+  kann auf die echte LAN-IP des Servers gesetzt werden, falls
+  `host.docker.internal` nicht aufgelöst wird.
+
 ## Daten
 - `data/services.json` – Liste der Dienste
 - `uploads/` – hochgeladene Icons

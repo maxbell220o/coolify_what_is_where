@@ -74,13 +74,50 @@ function readDb() {
 }
 function writeDb(data) { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
 
-function isPortFree(port) {
+// Hosts, die wir per TCP-Connect anpieken, um zu sehen ob ein Port am Server
+// (außerhalb des Containers) belegt ist. Erster antwortender Host gewinnt.
+const PROBE_HOSTS = (process.env.PROBE_HOSTS || 'host.docker.internal,172.17.0.1')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const PROBE_TIMEOUT_MS = parseInt(process.env.PROBE_TIMEOUT_MS || '600', 10);
+
+// "frei" = niemand antwortet UND wir können lokal binden.
+function probeConnect(host, port, timeoutMs) {
+  return new Promise((resolve) => {
+    const sock = new net.Socket();
+    let done = false;
+    const finish = (result) => { if (done) return; done = true; try { sock.destroy(); } catch {} resolve(result); };
+    sock.setTimeout(timeoutMs);
+    sock.once('connect', () => finish('in_use'));
+    sock.once('timeout', () => finish('unknown'));
+    sock.once('error', (e) => {
+      // ECONNREFUSED = nichts hört -> frei für diesen Host
+      if (e && e.code === 'ECONNREFUSED') return finish('free');
+      // EHOSTUNREACH / ENOTFOUND -> Host nicht erreichbar, kein Signal
+      finish('unknown');
+    });
+    sock.connect(port, host);
+  });
+}
+
+function probeLocalBind(port) {
   return new Promise((resolve) => {
     const srv = net.createServer();
     srv.unref();
-    srv.once('error', () => resolve(false));
-    srv.listen(port, '0.0.0.0', () => srv.close(() => resolve(true)));
+    srv.once('error', () => resolve('in_use'));
+    srv.listen(port, '0.0.0.0', () => srv.close(() => resolve('free')));
   });
+}
+
+async function isPortFree(port) {
+  // Alle Probe-Hosts parallel anpieken
+  const results = await Promise.all(PROBE_HOSTS.map(h => probeConnect(h, port, PROBE_TIMEOUT_MS)));
+  if (results.some(r => r === 'in_use')) return false;
+  // Lokaler Bind-Test als Fallback / zusätzliche Sicherheit
+  const local = await probeLocalBind(port);
+  if (local === 'in_use') return false;
+  // Wenn lokal frei und kein externer Host belegt meldete, gilt frei.
+  // "unknown" allein heißt: wir wissen es nicht sicher, also als frei werten.
+  return true;
 }
 
 function buildPortPriority() {

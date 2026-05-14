@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Hosts (komma-separiert), an denen die App per TCP-Connect prüft,
+      # ob ein Port außerhalb des Containers belegt ist.
+      PROBE_HOSTS: "host.docker.internal,172.17.0.1"
+      PROBE_TIMEOUT_MS: "600"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - data:/app/data
+      - uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  data:
+  uploads:
