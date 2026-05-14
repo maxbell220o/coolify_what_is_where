@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Coolify – What is Where</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header>
+  <h1>Coolify – What is Where</h1>
+  <p>Speichere deine selbst gehosteten Dienste mit Adresse, Port, Name und Bild.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Neuen Dienst hinzufügen</h2>
+    <form id="add-form" enctype="multipart/form-data">
+      <label>Name
+        <input name="name" required placeholder="z.B. Gitea" />
+      </label>
+      <label>Adresse (Host/IP, ohne Port)
+        <input name="address" required placeholder="z.B. server.local oder 192.168.1.10" />
+      </label>
+      <label>Port
+        <div class="port-row">
+          <input name="port" id="port-input" type="number" min="1" max="65535" required />
+          <button type="button" id="free-port-btn" title="Freien Port vom Server holen">Freien Port holen</button>
+        </div>
+        <small id="port-hint"></small>
+      </label>
+      <label>Bild / Icon
+        <input name="image" type="file" accept="image/*" />
+      </label>
+      <button type="submit">Speichern</button>
+      <p id="form-error" class="error"></p>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Deine Dienste</h2>
+    <div id="cards" class="cards"></div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

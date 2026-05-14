@@ -1,0 +1,13 @@
+{
+  "name": "coolify-what-is-where",
+  "version": "1.0.0",
+  "description": "Dashboard für selbst gehostete Coolify-Services mit Port-Validierung und Free-Port-Tool.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
