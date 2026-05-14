@@ -122,6 +122,10 @@ small { color: #888; }
   font-size: .7rem; background: #422006; color: #fbbf24;
   padding: .15rem .5rem; border-radius: 999px;
 }
+.existing-badge {
+  font-size: .7rem; background: #064e3b; color: #6ee7b7;
+  padding: .15rem .5rem; border-radius: 999px;
+}
 label.check {
   display: flex; align-items: center; gap: .5rem;
   font-size: .85rem;

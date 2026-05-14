@@ -99,6 +99,7 @@ function renderCard(s, owned) {
       ${s.category ? `<div class="cat"></div>` : ''}
       ${s.description ? `<div class="desc"></div>` : ''}
       ${s.hidden ? `<div class="hidden-badge">🔒 versteckt</div>` : ''}
+      ${s.existing ? `<div class="existing-badge">↪ bestehend</div>` : ''}
     </a>
     ${owned ? `<div class="card-actions">
       <button class="icon" data-act="edit" title="Bearbeiten">✎</button>
@@ -147,12 +148,14 @@ function openEdit(s) {
   svcForm.category.value = s.category || '';
   svcForm.description.value = s.description || '';
   svcForm.hidden.checked = !!s.hidden;
+  svcForm.existing.checked = !!s.existing;
   svcError.textContent = '';
   svcPortHint.textContent = '';
   svcModal.showModal();
 }
 addBtn.onclick = openCreate;
 svcCancel.onclick = () => svcModal.close();
+svcForm.existing.addEventListener('change', () => svcPort.dispatchEvent(new Event('input')));
 
 // Port-Live-Check
 let portTimer = null;
@@ -177,6 +180,12 @@ svcPort.addEventListener('input', () => {
       // bei Edit den eigenen aktuellen Port nicht als belegt anzeigen
       const editing = editingId ? services.find(x => x.id === editingId) : null;
       if (editing && editing.port === p) { svcPortHint.textContent = 'aktueller Port'; return; }
+      // Bei "bestehende Anwendung" ist "belegt" gewünscht
+      if (j.reason === 'in_use' && svcForm.existing.checked) {
+        svcPort.setCustomValidity('');
+        svcPortHint.textContent = '✓ Port belegt – bestehende Anwendung';
+        return;
+      }
       const msg = j.reason === 'in_use' ? `Port ${p} ist belegt (Prozess läuft)`
         : j.reason === 'already_assigned' ? `Port ${p} ist schon einem Dienst zugewiesen`
         : `Port ${p} nicht verfügbar`;
@@ -211,6 +220,8 @@ svcForm.addEventListener('submit', async (e) => {
   const fd = new FormData(svcForm);
   fd.delete('id');
   fd.set('hidden', svcForm.hidden.checked ? '1' : '0');
+  fd.set('existing', svcForm.existing.checked ? '1' : '0');
+  if (svcForm.existing.checked) fd.set('skipFreeCheck', '1');
   if (!fd.get('image') || !fd.get('image').name) fd.delete('image');
 
   const url = editingId ? `/api/services/${editingId}` : '/api/services';

@@ -256,7 +256,8 @@ app.post('/api/services', upload.single('image'), async (req, res) => {
   const description = (req.body.description || '').trim();
   const category = (req.body.category || '').trim();
   const hidden = req.body.hidden === '1' || req.body.hidden === 'true';
-  const skipFree = req.body.skipFreeCheck === '1';
+  const existing = req.body.existing === '1' || req.body.existing === 'true';
+  const skipFree = existing || req.body.skipFreeCheck === '1';
 
   if (!name) return res.status(400).json({ error: 'Name fehlt' });
   if (!address) return res.status(400).json({ error: 'Adresse fehlt' });
@@ -279,7 +280,7 @@ app.post('/api/services', upload.single('image'), async (req, res) => {
     id: crypto.randomBytes(6).toString('hex'),
     name, address, port,
     image: req.file ? `/uploads/${req.file.filename}` : null,
-    description, category, hidden,
+    description, category, hidden, existing,
     ownerTokens: [token],
     order: db.services.length,
     createdAt: new Date().toISOString(),
@@ -309,6 +310,7 @@ app.put('/api/services/:id', upload.single('image'), async (req, res) => {
   if (req.body.description != null) s.description = String(req.body.description).trim();
   if (req.body.category != null) s.category = String(req.body.category).trim();
   if (req.body.hidden != null) s.hidden = (req.body.hidden === '1' || req.body.hidden === 'true');
+  if (req.body.existing != null) s.existing = (req.body.existing === '1' || req.body.existing === 'true');
   if (req.body.port != null) {
     const port = parseInt(req.body.port, 10);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -319,7 +321,10 @@ app.put('/api/services/:id', upload.single('image'), async (req, res) => {
       if (db.services.some((x) => x.id !== s.id && x.port === port)) {
         return res.status(409).json({ error: `Port ${port} ist schon zugewiesen` });
       }
-      if (req.body.skipFreeCheck !== '1' && !(await isPortFree(port))) {
+      const skip = req.body.skipFreeCheck === '1'
+        || req.body.existing === '1' || req.body.existing === 'true'
+        || s.existing;
+      if (!skip && !(await isPortFree(port))) {
         return res.status(409).json({ error: `Port ${port} ist bereits belegt` });
       }
     }
