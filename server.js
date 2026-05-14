@@ -69,16 +69,33 @@ const BLOCKED_PORTS = new Set([
 function readDb() {
   try {
     const d = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    return { services: d.services || [] };
-  } catch { return { services: [] }; }
+    return { services: d.services || [], manualBlocked: d.manualBlocked || [] };
+  } catch { return { services: [], manualBlocked: [] }; }
 }
 function writeDb(data) { fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2)); }
 
-// Hosts, die wir per TCP-Connect anpieken, um zu sehen ob ein Port am Server
-// (außerhalb des Containers) belegt ist. Erster antwortender Host gewinnt.
-const PROBE_HOSTS = (process.env.PROBE_HOSTS || 'host.docker.internal,172.17.0.1')
+// Default-Gateway aus /proc/net/route lesen (= Host-IP in Docker-Bridge).
+function detectDefaultGateway() {
+  try {
+    const txt = fs.readFileSync('/proc/net/route', 'utf8');
+    for (const line of txt.split('\n').slice(1)) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 3) continue;
+      const [, dest, gw, flags] = parts;
+      if (dest === '00000000' && (parseInt(flags, 16) & 2)) {
+        const bytes = gw.match(/../g).reverse().map(h => parseInt(h, 16));
+        return bytes.join('.');
+      }
+    }
+  } catch {}
+  return null;
+}
+const AUTO_GW = detectDefaultGateway();
+const PROBE_HOSTS = (process.env.PROBE_HOSTS
+  || [AUTO_GW, 'host.docker.internal', '172.17.0.1'].filter(Boolean).join(','))
   .split(',').map(s => s.trim()).filter(Boolean);
-const PROBE_TIMEOUT_MS = parseInt(process.env.PROBE_TIMEOUT_MS || '600', 10);
+const PROBE_TIMEOUT_MS = parseInt(process.env.PROBE_TIMEOUT_MS || '700', 10);
+console.log('[port-probe] hosts:', PROBE_HOSTS.join(', '));
 
 // "frei" = niemand antwortet UND wir können lokal binden.
 function probeConnect(host, port, timeoutMs) {
@@ -188,6 +205,9 @@ function isOwner(service, token) {
 function publicService(s, token) {
   return { ...s, mine: isOwner(s, token), ownerTokens: undefined };
 }
+function visibleTo(s, token) {
+  return !s.hidden || isOwner(s, token);
+}
 
 app.get('/api/blocked-ports', (req, res) => {
   res.json([...BLOCKED_PORTS].sort((a, b) => a - b));
@@ -215,6 +235,7 @@ app.get('/api/services', (req, res) => {
   const token = getToken(req);
   const list = readDb().services
     .slice()
+    .filter((s) => visibleTo(s, token))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((s) => publicService(s, token));
   res.json(list);
@@ -234,6 +255,7 @@ app.post('/api/services', upload.single('image'), async (req, res) => {
   const port = parseInt(req.body.port, 10);
   const description = (req.body.description || '').trim();
   const category = (req.body.category || '').trim();
+  const hidden = req.body.hidden === '1' || req.body.hidden === 'true';
   const skipFree = req.body.skipFreeCheck === '1';
 
   if (!name) return res.status(400).json({ error: 'Name fehlt' });
@@ -257,7 +279,7 @@ app.post('/api/services', upload.single('image'), async (req, res) => {
     id: crypto.randomBytes(6).toString('hex'),
     name, address, port,
     image: req.file ? `/uploads/${req.file.filename}` : null,
-    description, category,
+    description, category, hidden,
     ownerTokens: [token],
     order: db.services.length,
     createdAt: new Date().toISOString(),
@@ -286,6 +308,7 @@ app.put('/api/services/:id', upload.single('image'), async (req, res) => {
   }
   if (req.body.description != null) s.description = String(req.body.description).trim();
   if (req.body.category != null) s.category = String(req.body.category).trim();
+  if (req.body.hidden != null) s.hidden = (req.body.hidden === '1' || req.body.hidden === 'true');
   if (req.body.port != null) {
     const port = parseInt(req.body.port, 10);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {

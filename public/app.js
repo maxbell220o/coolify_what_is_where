@@ -85,7 +85,7 @@ function renderAll() {
 
 function renderCard(s, owned) {
   const card = document.createElement('div');
-  card.className = 'card' + (owned ? ' mine' : '');
+  card.className = 'card' + (owned ? ' mine' : '') + (s.hidden ? ' hidden-svc' : '');
   card.dataset.id = s.id;
   if (owned) card.draggable = true;
   const url = `http://${s.address}:${s.port}`;
@@ -98,6 +98,7 @@ function renderCard(s, owned) {
       <div class="addr"></div>
       ${s.category ? `<div class="cat"></div>` : ''}
       ${s.description ? `<div class="desc"></div>` : ''}
+      ${s.hidden ? `<div class="hidden-badge">🔒 versteckt</div>` : ''}
     </a>
     ${owned ? `<div class="card-actions">
       <button class="icon" data-act="edit" title="Bearbeiten">✎</button>
@@ -145,6 +146,7 @@ function openEdit(s) {
   svcForm.port.value = s.port;
   svcForm.category.value = s.category || '';
   svcForm.description.value = s.description || '';
+  svcForm.hidden.checked = !!s.hidden;
   svcError.textContent = '';
   svcPortHint.textContent = '';
   svcModal.showModal();
@@ -208,6 +210,7 @@ svcForm.addEventListener('submit', async (e) => {
 
   const fd = new FormData(svcForm);
   fd.delete('id');
+  fd.set('hidden', svcForm.hidden.checked ? '1' : '0');
   if (!fd.get('image') || !fd.get('image').name) fd.delete('image');
 
   const url = editingId ? `/api/services/${editingId}` : '/api/services';

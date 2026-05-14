@@ -117,6 +117,16 @@ small { color: #888; }
   border-radius: 999px; color: #93c5fd;
 }
 .card .desc { font-size: .8rem; opacity: .7; text-align: center; }
+.card.hidden-svc { border-style: dashed; opacity: .85; }
+.hidden-badge {
+  font-size: .7rem; background: #422006; color: #fbbf24;
+  padding: .15rem .5rem; border-radius: 999px;
+}
+label.check {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .85rem;
+}
+label.check input { width: auto; }
 .card-actions {
   display: flex; justify-content: flex-end; gap: .25rem;
   padding: .3rem; border-top: 1px solid #262a33;
