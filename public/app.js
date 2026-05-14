@@ -50,12 +50,30 @@ function validatePort(p) {
   return null;
 }
 
+let portCheckTimer = null;
+async function checkPortRemote(p, inputEl, errorEl) {
+  try {
+    const r = await fetch(`/api/check-port?port=${p}`);
+    const j = await r.json();
+    if (!j.ok) {
+      const msg = j.reason === 'in_use' ? `Port ${p} ist belegt` : `Port ${p} ist gesperrt`;
+      inputEl.setCustomValidity(msg);
+      errorEl.textContent = msg;
+    } else {
+      inputEl.setCustomValidity('');
+      if (errorEl.textContent.startsWith('Port ')) errorEl.textContent = '';
+    }
+  } catch {}
+}
+
 portInput.addEventListener('input', () => {
   const p = parseInt(portInput.value, 10);
   if (!portInput.value) { portInput.setCustomValidity(''); errEl.textContent = ''; return; }
   const err = validatePort(p);
   portInput.setCustomValidity(err || '');
   errEl.textContent = err || '';
+  clearTimeout(portCheckTimer);
+  if (!err) portCheckTimer = setTimeout(() => checkPortRemote(p, portInput, errEl), 400);
 });
 
 async function fetchFreePort() {

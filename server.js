@@ -126,6 +126,16 @@ app.get('/api/blocked-ports', (req, res) => {
   res.json([...BLOCKED_PORTS].sort((a, b) => a - b));
 });
 
+app.get('/api/check-port', async (req, res) => {
+  const port = parseInt(req.query.port, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return res.status(400).json({ error: 'Port 1–65535' });
+  }
+  if (BLOCKED_PORTS.has(port)) return res.json({ ok: false, reason: 'blocked' });
+  const free = await isPortFree(port);
+  res.json({ ok: free, reason: free ? null : 'in_use' });
+});
+
 app.get('/api/free-port', async (req, res) => {
   const port = await findFreePort();
   if (port == null) return res.status(503).json({ error: 'Kein freier Port gefunden' });
@@ -200,11 +210,12 @@ app.get('/api/services', (req, res) => {
   res.json(services.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
 });
 
-app.post('/api/services', upload.single('image'), (req, res) => {
+app.post('/api/services', upload.single('image'), async (req, res) => {
   const name = (req.body.name || '').trim();
   const address = (req.body.address || '').trim();
   const port = parseInt(req.body.port, 10);
   const hostId = (req.body.hostId || '').trim();
+  const skipFreeCheck = req.body.skipFreeCheck === '1' || req.body.skipFreeCheck === 'true';
 
   if (!name) return res.status(400).json({ error: 'Name fehlt' });
   if (!address) return res.status(400).json({ error: 'Adresse fehlt' });
@@ -213,6 +224,9 @@ app.post('/api/services', upload.single('image'), (req, res) => {
   }
   if (BLOCKED_PORTS.has(port)) {
     return res.status(400).json({ error: `Port ${port} ist vom Browser gesperrt` });
+  }
+  if (!skipFreeCheck && !(await isPortFree(port))) {
+    return res.status(409).json({ error: `Port ${port} ist bereits belegt`, reason: 'in_use' });
   }
 
   const db = readDb();
@@ -233,10 +247,11 @@ app.post('/api/services', upload.single('image'), (req, res) => {
   res.status(201).json(entry);
 });
 
-app.put('/api/services/:id', upload.single('image'), (req, res) => {
+app.put('/api/services/:id', upload.single('image'), async (req, res) => {
   const db = readDb();
   const s = db.services.find((x) => x.id === req.params.id);
   if (!s) return res.status(404).json({ error: 'Nicht gefunden' });
+  const skipFreeCheck = req.body.skipFreeCheck === '1' || req.body.skipFreeCheck === 'true';
 
   if (req.body.name != null) {
     const name = String(req.body.name).trim();
@@ -255,6 +270,9 @@ app.put('/api/services/:id', upload.single('image'), (req, res) => {
     }
     if (BLOCKED_PORTS.has(port)) {
       return res.status(400).json({ error: `Port ${port} ist vom Browser gesperrt` });
+    }
+    if (port !== s.port && !skipFreeCheck && !(await isPortFree(port))) {
+      return res.status(409).json({ error: `Port ${port} ist bereits belegt`, reason: 'in_use' });
     }
     s.port = port;
   }
